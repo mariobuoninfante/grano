@@ -1,6 +1,6 @@
 # grano
 
-Granular library for ChucK programming language
+Granular Class for ChucK programming language
 
   Copyright (c) 2017 - Mario Buoninfante
 
