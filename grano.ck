@@ -7,10 +7,11 @@ public class Grain{
     Windowing.hann(512) @=> window; //window types: rectangle, triangle, hann, hamming, blackmanHarris
     second/samp => float SR;
 
-    SndBuf audioFile => Gain dryVol;
+    SndBuf audioFile => Gain dryVol => ADSR out;                        //dry sound
+    out.set(10::ms, 140::ms, 0.9, 50::ms);
     audioFile.rate(0);
 
-    Phasor p => Gain pScale => Gain gOffset => Wavetable buffer => Gain g => Gain master => ADSR adsr => Pan2 stereo;
+    Phasor p => Gain pScale => Gain gOffset => Wavetable buffer => Gain g => Gain  master => ADSR adsr => Pan2 stereo;      //grain
     Step step => Envelope offsetLine => gOffset;
     adsr => Gain aux1;       //auxiliary output
     p => Gain gW => Wavetable gWindow => g; //read the window then connect it to the grain "Gain g"
@@ -167,6 +168,7 @@ public class Grain{
         return adsr.releaseTime();
     }
 
+
     function void adsrTrig( int x ){
         if( x == 1 ){
             adsr.keyOn();
@@ -198,27 +200,31 @@ public class Grain{
         grainsNr + 1 => grainsNr;
     }
 
-    function void play( Event trigger, dur attack, dur release ){
+    function void play( dur attack, dur release ){
         this.applySpread(spread);
         this.applyAux1(aux1Vol);
         this.applyMixVol(mixVol);
-        stereo => dac;
+        this.adsr.attackTime(attack);
+        this.adsr.releaseTime(release);
+        this.stereo => dac;
         this.adsrTrig(1);
         attack => now;
         this.adsrTrig(0);
         release => now;
-        stereo =< dac;
+        this.stereo =< dac;
     }
 
-    function void playDry( ADSR out, dur t, int pad ){ //play the original sound in a linear fashion - no grains - created to be used with pads (discrete steps)
-        dryVol => out;
-        pad/16.0 => float samplePhase; //max number of pads is hard coded (16) - make changes here if needed
+    function void playDry( dur t, int pad ){ //play the original sound in a linear fashion - no grains - created to be used with pads (discrete steps)
+        this.applyMixVol(mixVol);
+        this.out => dac;
+        pad/8.0 => float samplePhase; //max number of pads is hard coded (16) - make changes here if needed
         audioFile.phase(samplePhase);
         audioFile.rate(1);
-        out.keyOn();
+        this.out.keyOn();
         t => now;
-        out.keyOff();
-        dryVol =< out;
+        this.out.keyOff();
+        this.out.releaseTime() => now;
+        this.out =< dac;
         audioFile.rate(0);
     }
 }
